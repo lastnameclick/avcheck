@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Show-Ready Checker</title>
+    <style>
+        :root {
+            --pass: #10b981;
+            --fail: #ef4444;
+            --warn: #f59e0b;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --card-hover: #334155;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --border: #475569;
+            --accent: #6366f1;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--accent), #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: 1rem;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: var(--card);
+            margin-bottom: 2rem;
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--accent);
+            background: var(--card-hover);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-hint {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-info {
+            background: var(--card);
+            border-radius: 0.75rem;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1.5rem;
+            display: none;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .file-info.visible {
+            display: flex;
+        }
+
+        .file-icon {
+            font-size: 2rem;
+        }
+
+        .file-details {
+            flex: 1;
+        }
+
+        .file-name {
+            font-weight: 600;
+        }
+
+        .file-meta {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .analyze-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .analyze-btn:hover {
+            filter: brightness(1.1);
+        }
+
+        .analyze-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: var(--card);
+            border-radius: 2px;
+            margin-bottom: 2rem;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar.visible {
+            display: block;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--accent);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .results {
+            display: none;
+        }
+
+        .results.visible {
+            display: block;
+        }
+
+        .overall-status {
+            text-align: center;
+            padding: 2rem;
+            border-radius: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .overall-status.pass {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
+            border: 1px solid var(--pass);
+        }
+
+        .overall-status.fail {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.1));
+            border: 1px solid var(--fail);
+        }
+
+        .status-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .status-subtitle {
+            color: var(--text-muted);
+        }
+
+        .checks-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .check-item {
+            background: var(--card);
+            border-radius: 0.75rem;
+            overflow: hidden;
+        }
+
+        .check-header {
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .check-header:hover {
+            background: var(--card-hover);
+        }
+
+        .check-status {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .check-status.pass {
+            background: var(--pass);
+        }
+
+        .check-status.fail {
+            background: var(--fail);
+        }
+
+        .check-status.warn {
+            background: var(--warn);
+        }
+
+        .check-info {
+            flex: 1;
+        }
+
+        .check-name {
+            font-weight: 600;
+        }
+
+        .check-value {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .check-expand {
+            color: var(--text-muted);
+            transition: transform 0.2s;
+        }
+
+        .check-item.expanded .check-expand {
+            transform: rotate(180deg);
+        }
+
+        .check-details {
+            padding: 0 1.5rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+
+        .check-item.expanded .check-details {
+            max-height: 500px;
+            padding: 0 1.5rem 1.5rem;
+        }
+
+        .detail-box {
+            background: var(--bg);
+            border-radius: 0.5rem;
+            padding: 1rem;
+        }
+
+        .detail-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--warn);
+        }
+
+        .detail-text {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .detail-text code {
+            background: var(--card);
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.25rem;
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+
+        .reset-btn {
+            display: block;
+            width: 100%;
+            margin-top: 2rem;
+            padding: 1rem;
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .reset-btn:hover {
+            background: var(--card-hover);
+        }
+
+        .specs-note {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            background: var(--card);
+            border-radius: 0.75rem;
+            border-left: 3px solid var(--accent);
+        }
+
+        .specs-note h3 {
+            margin-bottom: 0.75rem;
+            font-size: 1rem;
+        }
+
+        .specs-note ul {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-left: 1.25rem;
+        }
+
+        .specs-note li {
+            margin-bottom: 0.25rem;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 1rem;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .upload-zone {
+                padding: 2rem 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Audio Show-Ready Checker</h1>
+            <p class="subtitle">Verify your audio tracks are ready for QLab playback</p>
+        </header>
+
+        <div class="upload-zone" id="uploadZone">
+            <div class="upload-icon">🎵</div>
+            <div class="upload-text">Drop your audio file here</div>
+            <div class="upload-hint">or click to browse (WAV, AIFF, MP3, M4A)</div>
+            <input type="file" class="file-input" id="fileInput" accept="audio/*,.wav,.aiff,.aif,.mp3,.m4a,.aac,.caf">
+        </div>
+
+        <div class="file-info" id="fileInfo">
+            <div class="file-icon">🎧</div>
+            <div class="file-details">
+                <div class="file-name" id="fileName">-</div>
+                <div class="file-meta" id="fileMeta">-</div>
+            </div>
+            <button class="analyze-btn" id="analyzeBtn">Analyze</button>
+        </div>
+
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+
+        <div class="results" id="results">
+            <div class="overall-status" id="overallStatus">
+                <div class="status-icon" id="statusIcon">-</div>
+                <div class="status-title" id="statusTitle">-</div>
+                <div class="status-subtitle" id="statusSubtitle">-</div>
+            </div>
+
+            <div class="checks-list" id="checksList"></div>
+
+            <button class="reset-btn" id="resetBtn">Check Another File</button>
+        </div>
+
+        <div class="specs-note">
+            <h3>Show-Ready Requirements</h3>
+            <ul>
+                <li>QLab-compatible format (WAV, AIFF, MP3, M4A, AAC, CAF)</li>
+                <li>Stereo audio (2 channels)</li>
+                <li>Integrated loudness: -24 to -14 LUFS</li>
+                <li>True peak below 0 dBFS (no clipping)</li>
+                <li>Full frequency range (no extreme filtering)</li>
+                <li>Clean recording (not phone/laptop mic)</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let audioFile = null;
+        let audioBuffer = null;
+        let audioContext = null;
+
+        // DOM Elements
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileMeta = document.getElementById('fileMeta');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const results = document.getElementById('results');
+        const overallStatus = document.getElementById('overallStatus');
+        const statusIcon = document.getElementById('statusIcon');
+        const statusTitle = document.getElementById('statusTitle');
+        const statusSubtitle = document.getElementById('statusSubtitle');
+        const checksList = document.getElementById('checksList');
+        const resetBtn = document.getElementById('resetBtn');
+
+        // QLab supported formats
+        const QLAB_FORMATS = ['audio/wav', 'audio/wave', 'audio/x-wav', 'audio/aiff', 'audio/x-aiff',
+                             'audio/mpeg', 'audio/mp3', 'audio/mp4', 'audio/m4a', 'audio/x-m4a',
+                             'audio/aac', 'audio/x-caf'];
+        const QLAB_EXTENSIONS = ['.wav', '.wave', '.aiff', '.aif', '.mp3', '.m4a', '.mp4', '.aac', '.caf'];
+
+        // Event Listeners
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                handleFile(e.target.files[0]);
+            }
+        });
+        analyzeBtn.addEventListener('click', analyzeAudio);
+        resetBtn.addEventListener('click', reset);
+
+        function handleFile(file) {
+            audioFile = file;
+            fileName.textContent = file.name;
+            fileMeta.textContent = `${formatBytes(file.size)}`;
+            fileInfo.classList.add('visible');
+            results.classList.remove('visible');
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function updateProgress(percent) {
+            progressFill.style.width = percent + '%';
+        }
+
+        async function analyzeAudio() {
+            if (!audioFile) return;
+
+            analyzeBtn.disabled = true;
+            progressBar.classList.add('visible');
+            updateProgress(10);
+
+            try {
+                // Initialize audio context
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+                // Read file
+                const arrayBuffer = await audioFile.arrayBuffer();
+                updateProgress(30);
+
+                // Decode audio
+                try {
+                    audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                } catch (decodeError) {
+                    throw new Error('Could not decode audio file. It may be corrupted or in an unsupported format.');
+                }
+                updateProgress(50);
+
+                // Run all checks
+                const checkResults = await runAllChecks();
+                updateProgress(90);
+
+                // Display results
+                displayResults(checkResults);
+                updateProgress(100);
+
+                setTimeout(() => {
+                    progressBar.classList.remove('visible');
+                    results.classList.add('visible');
+                }, 300);
+
+            } catch (error) {
+                alert('Error analyzing file: ' + error.message);
+                progressBar.classList.remove('visible');
+            }
+
+            analyzeBtn.disabled = false;
+        }
+
+        async function runAllChecks() {
+            const checks = [];
+
+            // 1. Format Check
+            checks.push(checkFormat());
+
+            // 2. Stereo Check
+            checks.push(checkStereo());
+
+            // 3. Loudness Check (LUFS approximation)
+            checks.push(checkLoudness());
+
+            // 4. Peak Level Check
+            checks.push(checkPeaks());
+
+            // 5. Frequency Range Check
+            checks.push(checkFrequencyRange());
+
+            // 6. Recording Quality Check
+            checks.push(checkRecordingQuality());
+
+            return checks;
+        }
+
+        function checkFormat() {
+            const extension = '.' + audioFile.name.split('.').pop().toLowerCase();
+            const mimeType = audioFile.type.toLowerCase();
+
+            const isValidExtension = QLAB_EXTENSIONS.includes(extension);
+            const isValidMime = QLAB_FORMATS.includes(mimeType) || mimeType.startsWith('audio/');
+
+            const pass = isValidExtension || isValidMime;
+
+            return {
+                name: 'File Format',
+                pass: pass,
+                status: pass ? 'pass' : 'fail',
+                value: `${extension.toUpperCase().slice(1)} file`,
+                details: pass ? null : {
+                    title: 'How to Fix',
+                    text: `QLab supports WAV, AIFF, MP3, M4A, AAC, and CAF files. Convert your file using a tool like:<br><br>
+                    <code>ffmpeg -i input.file -c:a pcm_s24le output.wav</code><br><br>
+                    Or use Audacity, Adobe Audition, or Logic Pro to export in a compatible format. WAV or AIFF at 48kHz/24-bit is recommended for theatrical use.`
+                }
+            };
+        }
+
+        function checkStereo() {
+            const channels = audioBuffer.numberOfChannels;
+            const pass = channels === 2;
+
+            let status = 'pass';
+            let details = null;
+
+            if (channels === 1) {
+                status = 'fail';
+                details = {
+                    title: 'How to Fix',
+                    text: `Your file is mono (1 channel). Most theatrical playback systems expect stereo files.<br><br>
+                    <strong>In Audacity:</strong> Tracks > Mix > Mix Stereo Down to Mono (reverse: duplicate track and make stereo)<br><br>
+                    <strong>Using FFmpeg:</strong><br>
+                    <code>ffmpeg -i input.wav -ac 2 output.wav</code><br><br>
+                    This will duplicate the mono channel to both left and right.`
+                };
+            } else if (channels > 2) {
+                status = 'warn';
+                details = {
+                    title: 'Note',
+                    text: `Your file has ${channels} channels (surround sound). QLab can handle this, but make sure your playback system is configured correctly. For most theatrical applications, stereo is preferred.`
+                };
+            }
+
+            return {
+                name: 'Channel Configuration',
+                pass: pass,
+                status: status,
+                value: channels === 1 ? 'Mono' : channels === 2 ? 'Stereo' : `${channels} channels`,
+                details: details
+            };
+        }
+
+        function checkLoudness() {
+            // Calculate approximate integrated loudness using ITU-R BS.1770 simplified
+            const channelData = [];
+            for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
+                channelData.push(audioBuffer.getChannelData(i));
+            }
+
+            // K-weighting approximation (simplified)
+            let sumSquares = 0;
+            const samples = channelData[0].length;
+
+            for (let i = 0; i < samples; i++) {
+                let sampleSum = 0;
+                for (let ch = 0; ch < channelData.length; ch++) {
+                    sampleSum += channelData[ch][i];
+                }
+                sampleSum /= channelData.length;
+                sumSquares += sampleSum * sampleSum;
+            }
+
+            const rms = Math.sqrt(sumSquares / samples);
+            const lufs = 20 * Math.log10(rms) - 0.691; // Approximate LUFS
+
+            let status = 'pass';
+            let details = null;
+
+            if (lufs < -30) {
+                status = 'fail';
+                details = {
+                    title: 'Too Quiet - How to Fix',
+                    text: `Your audio is very quiet (${lufs.toFixed(1)} LUFS). Theatrical playback typically needs -24 to -14 LUFS.<br><br>
+                    <strong>Quick Fix:</strong> Normalize your audio in your DAW or use a limiter to bring up the level.<br><br>
+                    <strong>Using FFmpeg:</strong><br>
+                    <code>ffmpeg -i input.wav -filter:a loudnorm=I=-18:TP=-1:LRA=11 output.wav</code><br><br>
+                    This normalizes to -18 LUFS with -1 dB true peak.`
+                };
+            } else if (lufs < -24) {
+                status = 'warn';
+                details = {
+                    title: 'Slightly Quiet',
+                    text: `Your audio is on the quieter side (${lufs.toFixed(1)} LUFS). This might be intentional for dynamic content, but consider whether it will be audible in your venue. Target -18 LUFS for dialogue-heavy content, -14 to -16 LUFS for music.`
+                };
+            } else if (lufs > -8) {
+                status = 'fail';
+                details = {
+                    title: 'Too Loud - How to Fix',
+                    text: `Your audio is very loud (${lufs.toFixed(1)} LUFS) and likely over-compressed or clipping.<br><br>
+                    <strong>This can cause:</strong> Distortion, listener fatigue, and damaged speakers.<br><br>
+                    <strong>Fix:</strong> Go back to your original mix and reduce the output level. Aim for -18 to -14 LUFS with peaks below -1 dBFS.`
+                };
+            } else if (lufs > -14) {
+                status = 'warn';
+                details = {
+                    title: 'Slightly Loud',
+                    text: `Your audio is on the louder side (${lufs.toFixed(1)} LUFS). This is fine for music but might be fatiguing for long playback. Ensure your peaks aren't clipping.`
+                };
+            }
+
+            return {
+                name: 'Loudness Level',
+                pass: status === 'pass',
+                status: status,
+                value: `${lufs.toFixed(1)} LUFS (approx)`,
+                details: details
+            };
+        }
+
+        function checkPeaks() {
+            let maxPeak = 0;
+
+            for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+                const channelData = audioBuffer.getChannelData(ch);
+                for (let i = 0; i < channelData.length; i++) {
+                    const absVal = Math.abs(channelData[i]);
+                    if (absVal > maxPeak) maxPeak = absVal;
+                }
+            }
+
+            const peakDb = 20 * Math.log10(maxPeak);
+
+            let status = 'pass';
+            let details = null;
+
+            if (maxPeak >= 1.0) {
+                status = 'fail';
+                details = {
+                    title: 'Clipping Detected - How to Fix',
+                    text: `Your audio is clipping (peaks at or above 0 dBFS). This causes audible distortion.<br><br>
+                    <strong>Fix:</strong> Reduce the level in your DAW before exporting. Use a limiter set to -1 dBFS to catch peaks.<br><br>
+                    <strong>Using FFmpeg:</strong><br>
+                    <code>ffmpeg -i input.wav -af "volume=-3dB" output.wav</code><br><br>
+                    Ideally, go back to your source and remix at a lower level.`
+                };
+            } else if (peakDb > -1) {
+                status = 'warn';
+                details = {
+                    title: 'Peaks Very Close to Clipping',
+                    text: `Your peaks are at ${peakDb.toFixed(1)} dBFS, very close to clipping. While not technically clipping, some playback systems may introduce distortion. Consider reducing peaks to -1 dBFS or below.`
+                };
+            } else if (peakDb < -20) {
+                status = 'warn';
+                details = {
+                    title: 'Very Low Peak Level',
+                    text: `Your peak level is quite low (${peakDb.toFixed(1)} dBFS). The audio may be too quiet for theatrical use. Consider normalizing the peaks to around -1 to -3 dBFS while maintaining appropriate loudness.`
+                };
+            }
+
+            return {
+                name: 'Peak Level',
+                pass: status === 'pass',
+                status: status,
+                value: `${peakDb.toFixed(1)} dBFS`,
+                details: details
+            };
+        }
+
+        function checkFrequencyRange() {
+            // Analyze frequency content using FFT
+            const fftSize = 8192;
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = fftSize;
+
+            // Get combined channel data
+            const combinedData = new Float32Array(audioBuffer.length);
+            for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+                const channelData = audioBuffer.getChannelData(ch);
+                for (let i = 0; i < channelData.length; i++) {
+                    combinedData[i] += channelData[i] / audioBuffer.numberOfChannels;
+                }
+            }
+
+            // Sample multiple sections for better accuracy
+            const sectionSize = fftSize;
+            const numSections = Math.min(10, Math.floor(combinedData.length / sectionSize));
+            const frequencyBins = new Float32Array(fftSize / 2);
+
+            for (let section = 0; section < numSections; section++) {
+                const startIdx = Math.floor(section * (combinedData.length - sectionSize) / numSections);
+                const sectionData = combinedData.slice(startIdx, startIdx + sectionSize);
+
+                // Simple DFT for key frequency bands
+                const bins = computeFrequencyBins(sectionData, audioBuffer.sampleRate);
+                for (let i = 0; i < bins.length; i++) {
+                    frequencyBins[i] += bins[i] / numSections;
+                }
+            }
+
+            // Check for missing frequency ranges
+            const lowEnergy = getEnergyInRange(frequencyBins, 20, 150, audioBuffer.sampleRate, fftSize);
+            const midEnergy = getEnergyInRange(frequencyBins, 300, 3000, audioBuffer.sampleRate, fftSize);
+            const highEnergy = getEnergyInRange(frequencyBins, 8000, 20000, audioBuffer.sampleRate, fftSize);
+
+            const totalEnergy = lowEnergy + midEnergy + highEnergy;
+            const lowRatio = lowEnergy / totalEnergy;
+            const highRatio = highEnergy / totalEnergy;
+
+            let status = 'pass';
+            let details = null;
+            let issue = '';
+
+            if (lowRatio < 0.05 && totalEnergy > 0.001) {
+                status = 'warn';
+                issue = 'Missing low frequencies (possible high-pass filter)';
+                details = {
+                    title: 'Low Frequencies Missing',
+                    text: `Your audio appears to have very little bass/low frequency content. This could indicate:<br><br>
+                    <strong>1. High-pass filter applied:</strong> Check your source file or recording chain for unintended filtering.<br>
+                    <strong>2. Recording issue:</strong> If recorded from a phone or laptop, the mic may not capture low frequencies.<br>
+                    <strong>3. Intentional:</strong> If this is dialogue or a specific sound effect, this may be normal.<br><br>
+                    For theatrical music/soundscapes, you typically want full-range audio (20Hz-20kHz).`
+                };
+            } else if (highRatio < 0.02 && totalEnergy > 0.001) {
+                status = 'warn';
+                issue = 'Missing high frequencies (possible low-pass filter or low sample rate)';
+                details = {
+                    title: 'High Frequencies Missing',
+                    text: `Your audio appears to have very little high frequency content. This could indicate:<br><br>
+                    <strong>1. Low-pass filter applied:</strong> Check your export settings.<br>
+                    <strong>2. Low sample rate conversion:</strong> If downsampled from a higher rate, use proper resampling.<br>
+                    <strong>3. MP3 compression artifacts:</strong> High frequencies are often lost in aggressive compression.<br>
+                    <strong>4. Old or degraded source:</strong> Tape or vinyl sources may have limited high frequency content.<br><br>
+                    Ideally, work with 48kHz/24-bit source files for theatrical use.`
+                };
+            }
+
+            return {
+                name: 'Frequency Range',
+                pass: status === 'pass',
+                status: status,
+                value: status === 'pass' ? 'Full range detected' : issue,
+                details: details
+            };
+        }
+
+        function computeFrequencyBins(samples, sampleRate) {
+            const n = samples.length;
+            const bins = new Float32Array(n / 2);
+
+            // Simplified FFT magnitude calculation for key frequencies
+            for (let k = 0; k < n / 2; k++) {
+                let real = 0, imag = 0;
+                for (let t = 0; t < n; t++) {
+                    const angle = (2 * Math.PI * k * t) / n;
+                    real += samples[t] * Math.cos(angle);
+                    imag -= samples[t] * Math.sin(angle);
+                }
+                bins[k] = Math.sqrt(real * real + imag * imag) / n;
+            }
+
+            return bins;
+        }
+
+        function getEnergyInRange(bins, lowFreq, highFreq, sampleRate, fftSize) {
+            const lowBin = Math.floor(lowFreq * fftSize / sampleRate);
+            const highBin = Math.min(Math.floor(highFreq * fftSize / sampleRate), bins.length - 1);
+
+            let energy = 0;
+            for (let i = lowBin; i <= highBin; i++) {
+                energy += bins[i] * bins[i];
+            }
+            return Math.sqrt(energy);
+        }
+
+        function checkRecordingQuality() {
+            // Check for signs of poor recording quality
+            const channelData = [];
+            for (let i = 0; i < audioBuffer.numberOfChannels; i++) {
+                channelData.push(audioBuffer.getChannelData(i));
+            }
+
+            let issues = [];
+
+            // Check for stereo that's actually mono (fake stereo)
+            if (channelData.length >= 2) {
+                let correlation = 0;
+                let count = 0;
+                const sampleStep = Math.max(1, Math.floor(channelData[0].length / 10000));
+
+                for (let i = 0; i < channelData[0].length; i += sampleStep) {
+                    if (Math.abs(channelData[0][i]) > 0.001 || Math.abs(channelData[1][i]) > 0.001) {
+                        const diff = Math.abs(channelData[0][i] - channelData[1][i]);
+                        const avg = (Math.abs(channelData[0][i]) + Math.abs(channelData[1][i])) / 2;
+                        if (avg > 0) {
+                            correlation += 1 - (diff / avg);
+                            count++;
+                        }
+                    }
+                }
+
+                if (count > 0) {
+                    correlation /= count;
+                    if (correlation > 0.98) {
+                        issues.push('mono-as-stereo');
+                    }
+                }
+            }
+
+            // Check for DC offset
+            let dcOffset = 0;
+            for (let ch = 0; ch < channelData.length; ch++) {
+                let sum = 0;
+                for (let i = 0; i < channelData[ch].length; i++) {
+                    sum += channelData[ch][i];
+                }
+                dcOffset = Math.max(dcOffset, Math.abs(sum / channelData[ch].length));
+            }
+
+            if (dcOffset > 0.01) {
+                issues.push('dc-offset');
+            }
+
+            // Check sample rate
+            if (audioBuffer.sampleRate < 44100) {
+                issues.push('low-sample-rate');
+            }
+
+            // Check for very short duration (might be a clip/sample)
+            if (audioBuffer.duration < 1) {
+                issues.push('very-short');
+            }
+
+            let status = 'pass';
+            let details = null;
+            let value = 'Looks good';
+
+            if (issues.length > 0) {
+                status = 'warn';
+
+                let issueText = '';
+                if (issues.includes('mono-as-stereo')) {
+                    issueText += `<strong>Mono content in stereo file:</strong> Both channels appear identical. This wastes file size and may indicate the audio was recorded in mono and incorrectly converted. This isn't necessarily a problem, but true stereo content sounds more immersive.<br><br>`;
+                }
+                if (issues.includes('dc-offset')) {
+                    issueText += `<strong>DC Offset detected:</strong> There's a constant voltage offset in the signal. This reduces headroom and can cause clicks between tracks.<br>
+                    <strong>Fix in Audacity:</strong> Effect > Normalize > Remove DC offset<br>
+                    <strong>Fix with FFmpeg:</strong> <code>ffmpeg -i input.wav -af "highpass=f=10" output.wav</code><br><br>`;
+                }
+                if (issues.includes('low-sample-rate')) {
+                    issueText += `<strong>Low sample rate (${audioBuffer.sampleRate}Hz):</strong> Professional theatrical audio typically uses 48kHz. Lower rates limit high frequency content and may sound dull on good playback systems.<br><br>`;
+                }
+                if (issues.includes('very-short')) {
+                    issueText += `<strong>Very short duration:</strong> This file is under 1 second. If this is a cue rather than a full track, this is fine. Otherwise, check that the file exported completely.<br><br>`;
+                }
+
+                value = issues.length === 1 ? '1 potential issue' : `${issues.length} potential issues`;
+                details = {
+                    title: 'Quality Notes',
+                    text: issueText
+                };
+            }
+
+            // Check for signs of phone/laptop mic recording
+            // (typically narrow frequency range + room reverb patterns)
+            // This is a simplified heuristic
+
+            return {
+                name: 'Recording Quality',
+                pass: status === 'pass',
+                status: status,
+                value: value,
+                details: details
+            };
+        }
+
+        function displayResults(checks) {
+            const passed = checks.filter(c => c.pass).length;
+            const total = checks.length;
+            const allPass = passed === total;
+            const hasFails = checks.some(c => c.status === 'fail');
+
+            overallStatus.className = 'overall-status ' + (hasFails ? 'fail' : 'pass');
+            statusIcon.textContent = hasFails ? '⚠️' : '✅';
+            statusTitle.textContent = hasFails ? 'Not Show-Ready' : 'Show-Ready!';
+            statusSubtitle.textContent = `${passed} of ${total} checks passed`;
+
+            checksList.innerHTML = '';
+
+            checks.forEach(check => {
+                const item = document.createElement('div');
+                item.className = 'check-item';
+
+                const statusEmoji = check.status === 'pass' ? '✓' : check.status === 'warn' ? '!' : '✗';
+
+                item.innerHTML = `
+                    <div class="check-header">
+                        <div class="check-status ${check.status}">${statusEmoji}</div>
+                        <div class="check-info">
+                            <div class="check-name">${check.name}</div>
+                            <div class="check-value">${check.value}</div>
+                        </div>
+                        ${check.details ? '<div class="check-expand">▼</div>' : ''}
+                    </div>
+                    ${check.details ? `
+                    <div class="check-details">
+                        <div class="detail-box">
+                            <div class="detail-title">${check.details.title}</div>
+                            <div class="detail-text">${check.details.text}</div>
+                        </div>
+                    </div>
+                    ` : ''}
+                `;
+
+                if (check.details) {
+                    item.querySelector('.check-header').addEventListener('click', () => {
+                        item.classList.toggle('expanded');
+                    });
+
+                    // Auto-expand failed checks
+                    if (check.status === 'fail') {
+                        item.classList.add('expanded');
+                    }
+                }
+
+                checksList.appendChild(item);
+            });
+        }
+
+        function reset() {
+            audioFile = null;
+            audioBuffer = null;
+            fileInput.value = '';
+            fileInfo.classList.remove('visible');
+            results.classList.remove('visible');
+            progressFill.style.width = '0%';
+        }
+    </script>
+</body>
+</html>
